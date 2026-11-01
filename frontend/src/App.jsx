@@ -3,6 +3,7 @@ import { Suspense, lazy } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import Navbar from './components/Navbar.jsx';
 import PrivateRoute from './components/PrivateRoute.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 // Pages
 const Home = lazy(() => import('./pages/Home.jsx'));
@@ -43,7 +44,7 @@ export default function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
             <Route path="/nearby" element={<NearbyHelp />} />
             <Route path="/report" element={<ReportIssue />} />
             <Route path="/about" element={<About />} />

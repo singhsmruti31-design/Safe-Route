@@ -38,7 +38,8 @@ export default function Dashboard() {
   const { location: currentLocation, loading: gpsLoading, error: gpsError, getLocation, setLocation } = useGeolocation();
   const { routes, scoredRoutes, selectedRouteIdx, setSelectedRouteIdx, selectedRoute, selectedScore,
           safestRouteIdx, fastestRouteIdx, routeLoading, safetyLoading, searchState,
-          routeError, safetyError, nearbyPlaces, searchRoutes, rescoreRoutes, clearRoutes } = useRoutes();
+          routeError, safetyError, nearbyPlaces, routeDisclaimer,
+          searchRoutes, rescoreRoutes, clearRoutes } = useRoutes();
 
   const [startLocation, setStartLocation] = useState(null);
   const [endLocation, setEndLocation] = useState(null);
@@ -122,15 +123,19 @@ export default function Dashboard() {
     if (!startLocation || !endLocation) return;
     setNearestSafePlace(null);
     setRouteToSafePlace([]);
-    const result = await searchRoutes(startLocation, endLocation, departureTime);
-    if (result) {
-      // Centre map on route midpoint
-      const coords = result.routes[0]?.coordinates;
-      if (coords && coords.length > 0) {
-        const mid = coords[Math.floor(coords.length / 2)];
-        setMapCenter(mid);
-        setMapZoom(14);
+    try {
+      const result = await searchRoutes(startLocation, endLocation, departureTime);
+      if (result) {
+        // Centre map on route midpoint
+        const coords = result.routes[0]?.coordinates;
+        if (coords && coords.length > 0) {
+          const mid = coords[Math.floor(coords.length / 2)];
+          setMapCenter(mid);
+          setMapZoom(14);
+        }
       }
+    } catch (err) {
+      console.error('[Dashboard] handleSearch error:', err);
     }
   };
 

@@ -1,0 +1,201 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base ─────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', 'Manrope', system-ui, sans-serif;
+  background-color: #F5F8FC;
+  color: #172554;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ─── Leaflet overrides ─────────────────────────────────────── */
+.leaflet-container {
+  font-family: 'Inter', sans-serif;
+  z-index: 0;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+  border: 1px solid #E2E8F0;
+  padding: 0;
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  padding: 0;
+}
+
+.leaflet-popup-tip {
+  background: white;
+}
+
+/* Custom popup card inside leaflet */
+.safe-popup {
+  min-width: 220px;
+  padding: 14px 16px;
+  font-family: 'Inter', sans-serif;
+}
+
+.safe-popup h4 {
+  font-weight: 600;
+  font-size: 14px;
+  color: #172554;
+  margin: 0 0 4px 0;
+}
+
+.safe-popup p {
+  font-size: 12px;
+  color: #64748B;
+  margin: 2px 0;
+}
+
+.safe-popup .badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+/* ─── Custom marker colours ─────────────────────────────────── */
+.marker-police { filter: hue-rotate(200deg) saturate(2); }
+.marker-hospital { filter: hue-rotate(120deg) saturate(2); }
+.marker-pharmacy { filter: hue-rotate(90deg) saturate(2); }
+
+/* ─── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F5F8FC;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* ─── Utilities ─────────────────────────────────────────────── */
+.card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.btn-primary {
+  background-color: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #1D4ED8;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background-color: #F1F5F9;
+  color: #172554;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: #E2E8F0;
+}
+
+.btn-danger {
+  background-color: #DC2626;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.btn-danger:hover {
+  background-color: #B91C1C;
+  box-shadow: 0 4px 12px rgba(220,38,38,0.35);
+}
+
+/* Safety level colours */
+.safety-green { color: #16A34A; }
+.safety-yellow { color: #EAB308; }
+.safety-red { color: #DC2626; }
+.bg-safety-green { background-color: #DCFCE7; }
+.bg-safety-yellow { background-color: #FEF9C3; }
+.bg-safety-red { background-color: #FEE2E2; }
+
+/* Animated sos ring */
+@keyframes sosPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
+  50% { box-shadow: 0 0 0 12px rgba(220,38,38,0); }
+}
+.sos-pulse {
+  animation: sosPulse 1.5s ease-in-out infinite;
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.spinner-blue {
+  border-color: rgba(37,99,235,0.2);
+  border-top-color: #2563EB;
+}
+
+/* Route segment styles */
+.segment-green { stroke: #16A34A; }
+.segment-yellow { stroke: #EAB308; }
+.segment-red { stroke: #DC2626; }

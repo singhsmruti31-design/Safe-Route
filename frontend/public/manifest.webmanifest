@@ -1,0 +1,16 @@
+{
+  "name": "Safe Route",
+  "short_name": "SafeRoute",
+  "description": "Smart safety-based route finder for safer walking journeys.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F8FC",
+  "theme_color": "#2563EB",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

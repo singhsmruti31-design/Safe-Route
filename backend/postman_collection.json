@@ -1,0 +1,244 @@
+{
+  "info": {
+    "name": "Safe Route App API",
+    "_postman_id": "a9c72f10-9273-4e31-89d1-5e825a0b771e",
+    "description": "Complete Postman collection for the Safe Route App backend: safe walking routing, help points, SOS links, community reports, and moderation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "test-admin-secret-token",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health",
+      "item": [
+        {
+          "name": "GET /api/health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Returns server uptime, environment, mock mode status, and database/PostGIS connectivity."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Safe Routing",
+      "item": [
+        {
+          "name": "POST /api/routes/safe (Safest Mode)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": {\n    \"lat\": 51.5074,\n    \"lng\": -0.1278\n  },\n  \"end\": {\n    \"lat\": 51.5150,\n    \"lng\": -0.1350\n  },\n  \"mode\": \"safest\",\n  \"departAt\": \"2026-11-01T21:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/routes/safe",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "routes", "safe"]
+            },
+            "description": "Computes alternative walking routes from ORS, splits into ~100m segments, scores each via single PostGIS batch query, and sorts by highest safety score."
+          }
+        },
+        {
+          "name": "POST /api/routes/safe (Fastest Mode)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": {\n    \"lat\": 51.5074,\n    \"lng\": -0.1278\n  },\n  \"end\": {\n    \"lat\": 51.5150,\n    \"lng\": -0.1350\n  },\n  \"mode\": \"fastest\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/routes/safe",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "routes", "safe"]
+            },
+            "description": "Computes alternative walking routes, scores all segments, and sorts by shortest walking duration."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Help Points & Places",
+      "item": [
+        {
+          "name": "GET /api/places (All Types Nearby)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/places?lat=51.5074&lng=-0.1278&radius=1500",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "places"],
+              "query": [
+                { "key": "lat", "value": "51.5074" },
+                { "key": "lng", "value": "-0.1278" },
+                { "key": "radius", "value": "1500" }
+              ]
+            },
+            "description": "Returns nearby help points with time-evaluated open/closed status."
+          }
+        },
+        {
+          "name": "GET /api/places (Filtered by Categories)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/places?lat=51.5074&lng=-0.1278&radius=2000&types=police,hospital,pharmacy",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "places"],
+              "query": [
+                { "key": "lat", "value": "51.5074" },
+                { "key": "lng", "value": "-0.1278" },
+                { "key": "radius", "value": "2000" },
+                { "key": "types", "value": "police,hospital,pharmacy" }
+              ]
+            },
+            "description": "Filters help points by specific categories (police, hospital, pharmacy, fuel, shop24, atm)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Safe Havens & Emergency SOS",
+      "item": [
+        {
+          "name": "GET /api/safe-spots/nearest",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/safe-spots/nearest?lat=51.5074&lng=-0.1278",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safe-spots", "nearest"],
+              "query": [
+                { "key": "lat", "value": "51.5074" },
+                { "key": "lng", "value": "-0.1278" }
+              ]
+            },
+            "description": "Finds the top 3 closest currently OPEN police stations, hospitals, 24/7 shops or petrol pumps, plus a walking route to the #1 closest."
+          }
+        },
+        {
+          "name": "POST /api/sos/link",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 51.5074,\n  \"lng\": -0.1278,\n  \"name\": \"Sarah\",\n  \"contactPhone\": \"+44-7700-900077\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sos/link",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sos", "link"]
+            },
+            "description": "Stateless generator for emergency Google Maps, WhatsApp, and SMS links with pre-filled distress message."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Community Reports & Moderation",
+      "item": [
+        {
+          "name": "POST /api/reports (Submit Report)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 51.5074,\n  \"lng\": -0.1278,\n  \"type\": \"harassment\",\n  \"note\": \"Street harassment reported near entrance\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reports",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports"]
+            },
+            "description": "Submits an anonymous hazard report (status: pending). Rate limited per IP, hashes IP with SHA-256, enforces 50m / 24h spam prevention."
+          }
+        },
+        {
+          "name": "GET /api/reports (Approved in Bounding Box)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports?bbox=-0.15,51.50,-0.10,51.52",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports"],
+              "query": [
+                { "key": "bbox", "value": "-0.15,51.50,-0.10,51.52" }
+              ]
+            },
+            "description": "Returns only approved community reports within the requested bounding box (minLng,minLat,maxLng,maxLat)."
+          }
+        },
+        {
+          "name": "PATCH /api/admin/reports/:id (Approve / Reject)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-admin-token",
+                "value": "{{adminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reports/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "reports", "1"]
+            },
+            "description": "Admin endpoint to set report status to 'approved' or 'rejected'. Requires valid x-admin-token header."
+          }
+        }
+      ]
+    }
+  ]
+}

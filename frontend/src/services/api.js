@@ -28,7 +28,12 @@ export class ApiRequestError extends Error {
 }
 
 export function getApiBaseUrl() {
-  return (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+  const envUrl = (import.meta.env.VITE_API_BASE_URL || '').trim();
+  // If deployed in production or remote host, prevent accidental localhost requests
+  if (!envUrl || (import.meta.env.PROD && (envUrl.includes('localhost') || envUrl.includes('127.0.0.1')))) {
+    return 'https://safe-route-backend-e5zu.onrender.com';
+  }
+  return envUrl.replace(/\/$/, '');
 }
 
 export function getApiPath(envKey) {

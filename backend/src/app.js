@@ -18,25 +18,69 @@ import adminRouter from './routes/admin.js';
 
 const app = express();
 
-// Security Headers with Helmet
-app.use(helmet());
+// Security Headers with Helmet — allow cross-origin resource sharing
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 
-// CORS Configuration with strict allowlist
+// CORS Configuration with robust origin validation and preflight support
+const isOriginAllowed = (origin) => {
+  // Allow non-browser clients (curl, mobile apps, postman, Render internal health probes)
+  if (!origin) return true;
+
+  const cleanOrigin = origin.trim().replace(/\/+$/, '').toLowerCase();
+
+  // Wildcard allowed
+  if (env.ALLOWED_ORIGINS.includes('*')) return true;
+
+  // Direct match against ALLOWED_ORIGINS (env list + default list)
+  const matchesDirect = env.ALLOWED_ORIGINS.some(allowed => {
+    return allowed.trim().replace(/\/+$/, '').toLowerCase() === cleanOrigin;
+  });
+  if (matchesDirect) return true;
+
+  // Allow production and preview deployments for this project on Vercel
+  if (/^https:\/\/safe-route(-[a-z0-9-]+)?\.vercel\.app$/.test(cleanOrigin)) {
+    return true;
+  }
+
+  // Allow localhost & loopback for development on any port
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin)) {
+    return true;
+  }
+
+  return false;
+};
+
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow non-browser clients (curl, mobile, postman) or matching origins
-    if (!origin || env.ALLOWED_ORIGINS.includes(origin) || env.ALLOWED_ORIGINS.includes('*')) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Blocked by CORS policy'));
+      console.warn(`[CORS] Rejected request from origin: ${origin}`);
+      callback(null, false);
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-token']
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'x-admin-token',
+    'Accept',
+    'Origin',
+    'X-Requested-With'
+  ],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400,
+  optionsSuccessStatus: 204
 };
 
+// Apply CORS to all requests
 app.use(cors(corsOptions));
+
+// Explicitly handle preflight OPTIONS requests across all routes
+app.options('*', cors(corsOptions));
 
 // Body parser (100kb limit)
 app.use(express.json({ limit: '100kb' }));

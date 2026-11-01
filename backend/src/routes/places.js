@@ -5,7 +5,19 @@ import { isPlaceOpen } from '../services/openingHoursService.js';
 
 const router = express.Router();
 
-const ALLOWED_TYPES = ['police', 'hospital', 'pharmacy', 'fuel', 'shop24', 'atm'];
+const ALLOWED_TYPES = [
+  'police', 'hospital', 'clinic', 'ambulance',
+  'pharmacy', 'fuel', 'shop', 'shop24', 'atm',
+  'restaurant', 'cafe'
+];
+
+const TYPE_ALIAS_MAP = {
+  shop: 'shop24',
+  clinic: 'hospital',
+  ambulance: 'hospital',
+  cafe: 'shop24',
+  restaurant: 'shop24'
+};
 
 const placesQuerySchema = z.object({
   lat: z.coerce.number().min(-90).max(90, 'lat must be between -90 and 90'),
@@ -34,11 +46,14 @@ router.get('/', async (req, res, next) => {
     const validated = placesQuerySchema.parse(req.query);
     const targetTime = validated.at ? new Date(validated.at) : new Date();
 
+    // Map any frontend aliases (e.g. 'shop' -> 'shop24', 'clinic' -> 'hospital')
+    const mappedTypes = Array.from(new Set(validated.types.map(t => TYPE_ALIAS_MAP[t] || t)));
+
     const rawPlaces = await findNearbyPlaces({
       lat: validated.lat,
       lng: validated.lng,
       radiusMeters: validated.radius,
-      types: validated.types
+      types: mappedTypes
     });
 
     // Evaluate open/closed status for each place at target time

@@ -14,8 +14,14 @@
  *   Auth, User profiles, Emergency contacts, Saved routes
  */
 
-/** Base URL from environment. Trailing slash stripped. */
-const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+/** Base URL from environment or production Render fallback. Trailing slash stripped. */
+export function getBackendBaseUrl() {
+  const envUrl = (import.meta.env.VITE_API_BASE_URL || '').trim();
+  if (!envUrl || (import.meta.env.PROD && (envUrl.includes('localhost') || envUrl.includes('127.0.0.1')))) {
+    return 'https://safe-route-backend-e5zu.onrender.com';
+  }
+  return envUrl.replace(/\/$/, '');
+}
 
 /** Default request timeout in milliseconds */
 const DEFAULT_TIMEOUT_MS = 10000;
@@ -24,7 +30,7 @@ const DEFAULT_TIMEOUT_MS = 10000;
  * Returns true if VITE_API_BASE_URL is configured.
  */
 export function isBackendConfigured() {
-  return Boolean(BACKEND_BASE);
+  return Boolean(getBackendBaseUrl());
 }
 
 /**
@@ -35,7 +41,8 @@ export function isBackendConfigured() {
  * @returns {Promise<any>} Parsed JSON response body
  */
 async function backendFetch(path, { timeoutMs = DEFAULT_TIMEOUT_MS, signal: callerSignal, ...fetchOptions } = {}) {
-  if (!BACKEND_BASE) {
+  const baseUrl = getBackendBaseUrl();
+  if (!baseUrl) {
     const err = new Error('Backend API is not configured. Set VITE_API_BASE_URL in your .env file.');
     err.code = 'BACKEND_NOT_CONFIGURED';
     throw err;
@@ -53,7 +60,7 @@ async function backendFetch(path, { timeoutMs = DEFAULT_TIMEOUT_MS, signal: call
   const timeoutId = setTimeout(() => controller.abort(new DOMException('Request timed out', 'TimeoutError')), timeoutMs);
 
   try {
-    const response = await fetch(`${BACKEND_BASE}${path}`, {
+    const response = await fetch(`${baseUrl}${path}`, {
       ...fetchOptions,
       headers: {
         Accept: 'application/json',
@@ -194,7 +201,7 @@ export function normaliseRouteFromBackend(route, index) {
  * @returns {Promise<{ status: string, mockMode: boolean, database: object, features: object }>}
  */
 export async function checkBackendHealth() {
-  return backendFetch('/api/health', { timeoutMs: 5000 });
+  return backendFetch('/api/health', { timeoutMs: 15000 });
 }
 
 /**

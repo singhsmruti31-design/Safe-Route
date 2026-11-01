@@ -4,17 +4,17 @@
  * Checks GET /api/health on mount and displays:
  *   🟢 Backend • Mock Data   (backend online, MOCK_MODE=true)
  *   🟢 Backend • Live DB     (backend online, MOCK_MODE=false)
- *   🔴 Backend Offline       (cannot reach backend)
- *   (nothing)                (VITE_API_BASE_URL not configured)
+ *   🟡 Backend • Connecting… (initial connection or cold start wake-up)
+ *   🔴 Backend Offline       (cannot reach backend after retrying)
  *
  * Renders as a small, unobtrusive pill — does not block any UI.
  */
 
 import { useEffect, useState } from 'react';
-import { isBackendConfigured, checkBackendHealth } from '../services/backendApi.js';
+import { isBackendConfigured, checkBackendHealth, getBackendBaseUrl } from '../services/backendApi.js';
 
 export default function BackendStatus() {
-  const [status, setStatus] = useState('checking'); // 'checking' | 'online_mock' | 'online_live' | 'offline'
+  const [status, setStatus] = useState('checking'); // 'checking' | 'waking' | 'online_mock' | 'online_live' | 'offline'
   const [tooltip, setTooltip] = useState('');
 
   useEffect(() => {
@@ -24,22 +24,35 @@ export default function BackendStatus() {
     }
 
     let cancelled = false;
-    checkBackendHealth()
-      .then((health) => {
+
+    async function probeHealth(retryCount = 0) {
+      try {
+        const health = await checkBackendHealth();
         if (cancelled) return;
         if (health?.mockMode) {
           setStatus('online_mock');
-          setTooltip(`Backend online • Mock data (no live DB) • Uptime ${health.uptimeSeconds}s`);
+          setTooltip(`Backend online • Mock data (no live DB) • Uptime ${health.uptimeSeconds || 0}s`);
         } else {
           setStatus('online_live');
-          setTooltip(`Backend online • Live database • Uptime ${health.uptimeSeconds}s`);
+          setTooltip(`Backend online • Live database • Uptime ${health.uptimeSeconds || 0}s`);
         }
-      })
-      .catch(() => {
+      } catch {
         if (cancelled) return;
-        setStatus('offline');
-        setTooltip('Backend server is unreachable. Check that it is running at VITE_API_BASE_URL.');
-      });
+        if (retryCount === 0) {
+          // On first failure, backend on Render might be waking up from sleep. Show waking status and retry.
+          setStatus('waking');
+          setTooltip('Backend is waking up (Render free tier spin-up takes ~20s). Connecting…');
+          setTimeout(() => {
+            if (!cancelled) probeHealth(1);
+          }, 4000);
+        } else {
+          setStatus('offline');
+          setTooltip(`Backend server unreachable at ${getBackendBaseUrl()}. Please verify service status.`);
+        }
+      }
+    }
+
+    probeHealth(0);
 
     return () => { cancelled = true; };
   }, []);
@@ -48,10 +61,16 @@ export default function BackendStatus() {
   if (status === 'unconfigured' || status === 'checking') return null;
 
   const CONFIG = {
-    online_mock: {
-      dot: 'bg-amber-400',
+    waking: {
+      dot: 'bg-amber-400 animate-pulse',
       text: 'text-amber-700',
       bg: 'bg-amber-50 border-amber-200',
+      label: 'Backend • Connecting…',
+    },
+    online_mock: {
+      dot: 'bg-green-500',
+      text: 'text-green-700',
+      bg: 'bg-green-50 border-green-200',
       label: 'Backend • Mock Data',
     },
     online_live: {
@@ -81,4 +100,3 @@ export default function BackendStatus() {
     </span>
   );
 }
-

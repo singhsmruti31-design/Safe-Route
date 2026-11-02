@@ -160,12 +160,12 @@ export function normaliseRouteFromBackend(route, index) {
 
   const scoredRoute = score !== null
     ? {
-        overall: {
-          score,
-          confidence: 100, // Backend score is authoritative
-          level: LEVEL_TO_CATEGORY[route.level] || 'medium',
-        },
-        insufficient: false,
+       overall: {
+  score,
+  confidence: 0,
+  level: LEVEL_TO_CATEGORY[route.level] || 'medium',
+},
+insufficient: true,
         source: 'backend',
         disclaimer: route.disclaimer,
         weakestSegment: route.weakestSegment || null,

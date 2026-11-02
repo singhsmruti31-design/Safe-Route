@@ -3,7 +3,8 @@ import { env } from '../config/env.js';
 import { scoringConfig } from '../config/scoring.config.js';
 import { isPlaceOpen } from './openingHoursService.js';
 import { splitRouteIntoSegments } from './segmentSplitter.js';
-import { defaultMockPlaces, calculateHaversineDistanceMeters } from '../db/mockPlacesData.js';
+
+
 
 /**
  * Executes a single batched PostGIS query for an entire route's segments.
@@ -275,7 +276,34 @@ export function getScoreLevel(score) {
 export async function scoreAndRankRoutes({ routes, departAt = new Date(), mode = 'safest' }) {
   const evaluatedTime = departAt instanceof Date ? departAt : new Date(departAt);
   const cfg = scoringConfig;
+  // Never generate safety scores using mock or unavailable data.
+  if (!pool || env.MOCK_MODE) {
+    const fastestDuration = Math.min(
+      ...routes.map(route => route.properties?.summary?.duration || Infinity)
+    );
 
+    return {
+      mode,
+      safetyAnalysisAvailable: false,
+      message: 'Safety analysis is currently unavailable. Real safety data has not been configured.',
+      routes: routes.map((route, index) => ({
+        id: index + 1,
+        geometry: route.geometry,
+        distance: route.properties?.summary?.distance || 0,
+        duration: route.properties?.summary?.duration || 0,
+        score: null,
+        level: 'unavailable',
+        weakestSegment: null,
+        segments: [],
+        extraMinutesVsFastest: Number.isFinite(fastestDuration)
+          ? Math.round(
+              Math.max(0, (route.properties?.summary?.duration || 0) - fastestDuration) / 60 * 10
+            ) / 10
+          : 0
+      })),
+      disclaimer: cfg.disclaimer
+    };
+  }
   if (!routes || routes.length === 0) {
     return { routes: [], disclaimer: cfg.disclaimer };
   }

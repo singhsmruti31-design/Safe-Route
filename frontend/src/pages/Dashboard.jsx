@@ -38,7 +38,7 @@ export default function Dashboard() {
   const { location: currentLocation, loading: gpsLoading, error: gpsError, getLocation, setLocation } = useGeolocation();
   const { routes, scoredRoutes, selectedRouteIdx, setSelectedRouteIdx, selectedRoute, selectedScore,
           safestRouteIdx, fastestRouteIdx, routeLoading, safetyLoading, searchState,
-          routeError, safetyError, nearbyPlaces, routeDisclaimer,
+          routeError, safetyError, nearbyPlaces,
           searchRoutes, rescoreRoutes, clearRoutes } = useRoutes();
 
   const [startLocation, setStartLocation] = useState(null);
@@ -455,34 +455,30 @@ export default function Dashboard() {
                   } else if (idx === fastestRouteIdx) {
                     badge = 'Fastest Route'; badgeColor = '#2563EB';
                   }
-                  return (
-                    <RouteCard
-                      key={r.id}
-                      route={r}
-                      score={scoredRoutes[idx]}
-                      selected={selectedRouteIdx === idx}
-                      onSelect={() => {
-                        setSelectedRouteIdx(idx);
-                        setSidebarOpen(false);
-                      }}
-                      badge={badge}
-                      badgeColor={badgeColor}
-                    />
-                  );
-                })}
-                {/* Backend disclaimer or source label */}
-                {routeDisclaimer && (
-                  <p className="text-[11px] text-text-muted border border-border rounded-lg px-3 py-2">
-                    ⚠️ {routeDisclaimer}
-                  </p>
-                )}
-                {routes[0]?.source === 'backend' && !routeDisclaimer && (
-                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    ⚠️ Showing mock routes (backend MOCK_MODE=true, no ORS key configured). Geometry is illustrative only.
-                  </p>
-                )}
-              </div>
-            )}
+    return (
+  <RouteCard
+    key={r.id}
+    route={r}
+    score={scoredRoutes[idx]}
+    selected={selectedRouteIdx === idx}
+    onSelect={() => {
+      setSelectedRouteIdx(idx);
+      setSidebarOpen(false);
+    }}
+    badge={badge}
+    badgeColor={badgeColor}
+  />
+);
+})}
+</div>
+)}
+
+{/* Backend disclaimer or source label */}
+{routes[0]?.source === 'backend' && (
+  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+    ⚠️ Showing mock routes. Geometry is illustrative only. Safety data is insufficient for a reliable score.
+  </p>
+)}
 
             {/* Map layers toggle */}
             <div className="card">

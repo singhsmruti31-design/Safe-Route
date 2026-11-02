@@ -72,6 +72,7 @@ export async function createReport({ lat, lng, type, note, ipHash, userId = null
     const row = res.rows[0];
     return {
       id: row.id,
+      user_id: row.user_id,
       type: row.type,
       note: row.note,
       status: row.status,
@@ -83,6 +84,7 @@ export async function createReport({ lat, lng, type, note, ipHash, userId = null
   // In-memory mock storage
   const newReport = {
     id: inMemoryReports.length + 1,
+    user_id: userId || null,
     lat,
     lng,
     type,
@@ -95,6 +97,7 @@ export async function createReport({ lat, lng, type, note, ipHash, userId = null
 
   return {
     id: newReport.id,
+    user_id: newReport.user_id,
     type: newReport.type,
     note: newReport.note,
     status: newReport.status,
@@ -127,6 +130,7 @@ export async function getApprovedReportsInBbox({ minLng, minLat, maxLng, maxLat 
     const res = await pool.query(queryText, [minLng, minLat, maxLng, maxLat]);
     return res.rows.map(row => ({
       id: row.id,
+      user_id: row.user_id,
       type: row.type,
       note: row.note,
       status: row.status,
@@ -173,6 +177,7 @@ export async function updateReportStatus(id, newStatus) {
     const row = res.rows[0];
     return {
       id: row.id,
+      user_id: row.user_id,
       type: row.type,
       note: row.note,
       status: row.status,
@@ -187,10 +192,78 @@ export async function updateReportStatus(id, newStatus) {
   report.status = newStatus;
   return {
     id: report.id,
+    user_id: report.user_id,
     type: report.type,
     note: report.note,
     status: report.status,
     coordinates: { lat: report.lat, lng: report.lng },
     created_at: report.created_at
   };
+}
+
+/**
+ * Retrieves all reports submitted by a specific user.
+ */
+export async function getUserReports(userId) {
+  if (pool && !env.MOCK_MODE) {
+    const queryText = `
+      SELECT
+        id,
+        user_id,
+        type,
+        note,
+        status,
+        ST_Y(geom::geometry) AS lat,
+        ST_X(geom::geometry) AS lng,
+        created_at
+      FROM reports
+      WHERE user_id = $1
+      ORDER BY created_at DESC;
+    `;
+    const res = await pool.query(queryText, [userId]);
+    return res.rows.map(row => ({
+      id: row.id,
+      user_id: row.user_id,
+      type: row.type,
+      note: row.note,
+      status: row.status,
+      coordinates: { lat: parseFloat(row.lat), lng: parseFloat(row.lng) },
+      created_at: row.created_at
+    }));
+  }
+
+  // In-memory retrieval
+  return inMemoryReports
+    .filter(r => r.user_id && String(r.user_id) === String(userId))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .map(r => ({
+      id: r.id,
+      user_id: r.user_id,
+      type: r.type,
+      note: r.note,
+      status: r.status,
+      coordinates: { lat: r.lat, lng: r.lng },
+      created_at: r.created_at
+    }));
+}
+
+/**
+ * Deletes a report belonging to a specific user.
+ */
+export async function deleteUserReport(id, userId) {
+  if (pool && !env.MOCK_MODE) {
+    const queryText = `
+      DELETE FROM reports
+      WHERE id = $1 AND user_id = $2
+      RETURNING id;
+    `;
+    const res = await pool.query(queryText, [id, userId]);
+    return res.rows.length > 0;
+  }
+
+  // In-memory deletion
+  const idx = inMemoryReports.findIndex(r => String(r.id) === String(id) && String(r.user_id) === String(userId));
+  if (idx === -1) return false;
+  inMemoryReports.splice(idx, 1);
+  return true;
 }

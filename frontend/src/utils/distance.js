@@ -42,12 +42,19 @@ export function formatDuration(seconds) {
 
 /**
  * Interpolate a polyline into equal-length segments of approx `segLen` metres.
- * Returns an array of { start: [lat,lon], end: [lat,lon], midpoint: [lat,lon] }
+ * Returns an array of {
+ *   start: [lat,lon],
+ *   end: [lat,lon],
+ *   midpoint: [lat,lon],
+ *   length: number,
+ *   coordinates: [[lat,lon], ...]   ← full sub-array of original coords for this segment
+ * }
  */
 export function segmentPolyline(coords, segLen = 100) {
   if (!coords || coords.length < 2) return [];
   const segments = [];
   let segStart = coords[0];
+  let segCoords = [coords[0]]; // accumulate actual coordinate points
   let accum = 0;
 
   for (let i = 1; i < coords.length; i++) {
@@ -55,6 +62,7 @@ export function segmentPolyline(coords, segLen = 100) {
     const curr = coords[i];
     const d = haversine(prev, curr);
     accum += d;
+    segCoords.push(curr);
 
     if (accum >= segLen) {
       segments.push({
@@ -62,8 +70,10 @@ export function segmentPolyline(coords, segLen = 100) {
         end: curr,
         midpoint: midpoint(segStart, curr),
         length: accum,
+        coordinates: segCoords,
       });
       segStart = curr;
+      segCoords = [curr]; // next segment starts from this point
       accum = 0;
     }
   }
@@ -76,6 +86,7 @@ export function segmentPolyline(coords, segLen = 100) {
       end: last,
       midpoint: midpoint(segStart, last),
       length: accum,
+      coordinates: segCoords,
     });
   }
 

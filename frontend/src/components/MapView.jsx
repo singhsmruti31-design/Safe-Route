@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -13,7 +13,8 @@ import L from 'leaflet';
 import { PLACE_CATEGORIES } from '../services/places.js';
 import { formatDistance, walkingTimeMinutes } from '../utils/distance.js';
 import { safetyCategoryColor } from '../utils/safetyScoring.js';
-import { isOpenAt, openStatusLabel, openStatusColor } from '../utils/openingHours.js';
+import { isOpenAt, openStatusLabel } from '../utils/openingHours.js';
+import { useState } from 'react';
 
 // Fix default Leaflet marker icon issue with Vite
 delete L.Icon.Default.prototype._getIconUrl;
@@ -48,8 +49,8 @@ const ICONS = {
   pharmacy: createIcon('#7C3AED', '💊', 26),
   fuel:     createIcon('#EA580C', '⛽', 26),
   shop:     createIcon('#0891B2', '🛍️', 24),
-  shop24:   createIcon('#0891B2', '🏪', 24),  // Backend type
-  atm:      createIcon('#0369A1', '🏧', 24),  // Backend type
+  shop24:   createIcon('#0891B2', '🏪', 24),
+  atm:      createIcon('#0369A1', '🏧', 24),
   restaurant: createIcon('#B45309', '🍽️', 24),
   cafe:     createIcon('#92400E', '☕', 24),
   other:    createIcon('#64748B', '📍', 24),
@@ -63,7 +64,93 @@ function MapController({ center, zoom }) {
     if (center) {
       map.flyTo(center, zoom || map.getZoom(), { duration: 1.2 });
     }
-  }, [center, zoom]);
+  }, [center, zoom, map]);
+  return null;
+}
+
+// ── Sub-component: fit map bounds to the selected route ──────────────────────
+//
+// Fires whenever `routes` or `selectedRouteIdx` changes.
+// Uses fitBounds with padding so origin + destination markers stay visible.
+// Respects user manual zoom/drag — only auto-fits when a new route is loaded
+// (tracked via a route-ID key so switching selections also re-fits).
+function RoutesFitter({ routes, selectedRouteIdx }) {
+  const map = useMap();
+  const lastFitKey = useRef(null);
+
+  useEffect(() => {
+    if (!routes || routes.length === 0) return;
+
+    const route = routes[selectedRouteIdx] ?? routes[0];
+    if (!route?.coordinates?.length) return;
+
+    // Build a stable key: route id + selected index
+    const fitKey = `${route.id ?? selectedRouteIdx}`;
+    if (fitKey === lastFitKey.current) return; // don't re-fit if nothing changed
+    lastFitKey.current = fitKey;
+
+    try {
+      const bounds = L.latLngBounds(route.coordinates);
+      if (!bounds.isValid()) return;
+
+      // Use tighter padding on small screens (mobile), more generous on desktop
+      const isMobile = window.innerWidth < 768;
+      const pad = isMobile ? [32, 32] : [60, 60];
+
+      map.fitBounds(bounds, {
+        padding: pad,
+        maxZoom: 16,
+        animate: true,
+        duration: 0.8,
+      });
+    } catch { /* non-critical — ignore */ }
+  }, [routes, selectedRouteIdx, map]);
+
+  return null;
+}
+
+// ── Sub-component: invalidateSize when sidebar opens/closes or container resizes ─
+//
+// Listens to the map container via ResizeObserver (handles orientation changes,
+// browser-chrome show/hide on Android, and sidebar toggle).
+// Also fires once on mount to fix dimensions after lazy loading.
+function MapResizeHandler({ resizeTrigger }) {
+  const map = useMap();
+  const timerRef = useRef(null);
+
+  // Helper: schedule a debounced invalidateSize
+  const scheduleInvalidate = () => {
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      try { map.invalidateSize({ animate: false }); } catch { /* ignore */ }
+    }, 120);
+  };
+
+  // 1) Fire whenever the external trigger (sidebarOpen) changes
+  useEffect(() => {
+    scheduleInvalidate();
+  }, [resizeTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 2) Fire on mount (handles lazy-loaded container)
+  useEffect(() => {
+    scheduleInvalidate();
+    return () => clearTimeout(timerRef.current);
+  }, [map]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 3) ResizeObserver: handles orientation changes and dynamic height changes
+  useEffect(() => {
+    const container = map.getContainer();
+    if (!container || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(() => scheduleInvalidate());
+    observer.observe(container);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(timerRef.current);
+    };
+  }, [map]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return null;
 }
 
@@ -88,7 +175,7 @@ function MapClickHandler({ onMapClick }) {
  *   currentLocation { lat, lon }     — blue dot + accuracy circle
  *   startLocation  { lat, lon, shortName }
  *   endLocation    { lat, lon, shortName }
- *   routes         Array             — all OSRM routes
+ *   routes         Array             — all routes
  *   scoredRoutes   Array             — matching scored route objects
  *   selectedRouteIdx number
  *   onSelectRoute  (idx) => void
@@ -98,6 +185,7 @@ function MapClickHandler({ onMapClick }) {
  *   nearestSafePlace object | null
  *   routeToSafePlace Array           — coordinates of route to safe place
  *   departureTime  Date
+ *   resizeTrigger  any               — change this value to trigger invalidateSize
  */
 export default function MapView({
   center,
@@ -115,6 +203,7 @@ export default function MapView({
   nearestSafePlace = null,
   routeToSafePlace = [],
   departureTime = new Date(),
+  resizeTrigger,
 }) {
   const [selectedSegment, setSelectedSegment] = useState(null);
 
@@ -127,7 +216,7 @@ export default function MapView({
       zoom={zoom}
       zoomControl={false}
       className="w-full h-full"
-      style={{ minHeight: '400px' }}
+      style={{ minHeight: '300px', minWidth: '100px' }}
     >
       {/* OSM Tile layer */}
       <TileLayer
@@ -137,7 +226,11 @@ export default function MapView({
       />
 
       <ZoomControl position="bottomright" />
+
+      {/* Sub-components that communicate with the Leaflet map instance */}
       <MapController center={center} zoom={zoom} />
+      <MapResizeHandler resizeTrigger={resizeTrigger} />
+      <RoutesFitter routes={routes} selectedRouteIdx={selectedRouteIdx} />
       {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
 
       {/* Current location marker + accuracy circle */}
@@ -189,7 +282,7 @@ export default function MapView({
         const scored = scoredRoutes[idx];
 
         if (!isSelected) {
-          // Non-selected routes: thin grey
+          // Non-selected routes: thin grey dashed line
           return (
             <Polyline
               key={route.id}
@@ -207,22 +300,32 @@ export default function MapView({
 
         // Selected route: show coloured segments if scored
         if (scored && scored.segments && scored.segments.length > 0) {
-          return scored.segments.map((seg, si) => (
-            <Polyline
-              key={`${route.id}_seg_${si}`}
-              positions={[seg.start, seg.end]}
-              pathOptions={{
-                color: safetyCategoryColor(seg.category),
-                weight: 6,
-                opacity: 0.85,
-                lineCap: 'round',
-                lineJoin: 'round',
-              }}
-              eventHandlers={{
-                click: () => setSelectedSegment(seg),
-              }}
-            />
-          ));
+          return scored.segments.map((seg, si) => {
+            // Use the actual polyline coordinates for this segment so the coloured
+            // overlay follows real road curves instead of drawing a straight line
+            // between seg.start and seg.end.
+            const segPositions =
+              seg.coordinates && seg.coordinates.length > 1
+                ? seg.coordinates
+                : [seg.start, seg.end];
+
+            return (
+              <Polyline
+                key={`${route.id}_seg_${si}`}
+                positions={segPositions}
+                pathOptions={{
+                  color: safetyCategoryColor(seg.category),
+                  weight: 6,
+                  opacity: 0.85,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                }}
+                eventHandlers={{
+                  click: () => setSelectedSegment(seg),
+                }}
+              />
+            );
+          });
         }
 
         // Selected route without segments: single blue line
@@ -239,7 +342,7 @@ export default function MapView({
         );
       })}
 
-      {/* Segment popup */}
+      {/* Segment info popup */}
       {selectedSegment && (
         <Marker
           position={selectedSegment.midpoint}

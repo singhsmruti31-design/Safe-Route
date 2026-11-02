@@ -25,25 +25,7 @@ CREATE INDEX IF NOT EXISTS idx_places_geom ON places USING GIST (geom);
 CREATE INDEX IF NOT EXISTS idx_places_type ON places (type);
 CREATE INDEX IF NOT EXISTS idx_places_is_24_7 ON places (is_24_7);
 
--- 3. Reports Table (Anonymous Community Safety Reports)
-CREATE TABLE IF NOT EXISTS reports (
-    id BIGSERIAL PRIMARY KEY,
-    geom geography(Point, 4326) NOT NULL,
-    type VARCHAR(50) NOT NULL, -- 'isolated', 'felt_unsafe', 'dark', 'harassment', 'safe_spot'
-    note VARCHAR(200),
-    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
-    ip_hash VARCHAR(64) NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Spatial index on reports geometry
-CREATE INDEX IF NOT EXISTS idx_reports_geom ON reports USING GIST (geom);
-
--- Status & spam prevention index
-CREATE INDEX IF NOT EXISTS idx_reports_status ON reports (status);
-CREATE INDEX IF NOT EXISTS idx_reports_ip_created ON reports (ip_hash, created_at);
-
--- 4. Users Table (Authentication & User Profiles)
+-- 3. Users Table (Authentication & User Profiles)
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
     full_name VARCHAR(150) NOT NULL,
@@ -58,7 +40,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (LOWER(email));
 
--- 5. Password Resets Table
+-- 4. Password Resets Table
 CREATE TABLE IF NOT EXISTS password_resets (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
@@ -70,7 +52,7 @@ CREATE TABLE IF NOT EXISTS password_resets (
 
 CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets (token_hash);
 
--- 6. Emergency Contacts Table
+-- 5. Emergency Contacts Table
 CREATE TABLE IF NOT EXISTS emergency_contacts (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -84,7 +66,7 @@ CREATE TABLE IF NOT EXISTS emergency_contacts (
 
 CREATE INDEX IF NOT EXISTS idx_contacts_user_id ON emergency_contacts (user_id);
 
--- 7. Saved Routes Table
+-- 6. Saved Routes Table
 CREATE TABLE IF NOT EXISTS saved_routes (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -99,3 +81,23 @@ CREATE TABLE IF NOT EXISTS saved_routes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_saved_routes_user_id ON saved_routes (user_id);
+
+-- 7. Reports Table (Community Safety Reports)
+CREATE TABLE IF NOT EXISTS reports (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    geom geography(Point, 4326) NOT NULL,
+    type VARCHAR(50) NOT NULL, -- 'isolated', 'felt_unsafe', 'dark', 'harassment', 'safe_spot'
+    note VARCHAR(200),
+    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+    ip_hash VARCHAR(64) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Spatial index on reports geometry
+CREATE INDEX IF NOT EXISTS idx_reports_geom ON reports USING GIST (geom);
+
+-- Status & spam prevention index
+CREATE INDEX IF NOT EXISTS idx_reports_status ON reports (status);
+CREATE INDEX IF NOT EXISTS idx_reports_ip_created ON reports (ip_hash, created_at);
+CREATE INDEX IF NOT EXISTS idx_reports_user_id ON reports (user_id);

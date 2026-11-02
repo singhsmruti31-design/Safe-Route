@@ -43,6 +43,7 @@ export default function Dashboard() {
 
   const [startLocation, setStartLocation] = useState(null);
   const [endLocation, setEndLocation] = useState(null);
+  // mapCenter / mapZoom used only for GPS fly-to; route fitting is handled by RoutesFitter in MapView
   const [mapCenter, setMapCenter] = useState(null);
   const [mapZoom, setMapZoom] = useState(13);
 
@@ -124,16 +125,9 @@ export default function Dashboard() {
     setNearestSafePlace(null);
     setRouteToSafePlace([]);
     try {
-      const result = await searchRoutes(startLocation, endLocation, departureTime);
-      if (result) {
-        // Centre map on route midpoint
-        const coords = result.routes[0]?.coordinates;
-        if (coords && coords.length > 0) {
-          const mid = coords[Math.floor(coords.length / 2)];
-          setMapCenter(mid);
-          setMapZoom(14);
-        }
-      }
+      // RoutesFitter in MapView automatically calls fitBounds when routes change,
+      // so we no longer need to manually set mapCenter / mapZoom here.
+      await searchRoutes(startLocation, endLocation, departureTime);
     } catch (err) {
       console.error('[Dashboard] handleSearch error:', err);
     }
@@ -291,7 +285,10 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
+    // Outer container fills viewport minus the sticky 64px navbar.
+    // Using 100dvh (dynamic viewport height) prevents the grey strip caused by
+    // the Android browser address bar showing/hiding during scroll.
+    <div className="flex flex-col" style={{ height: 'calc(100dvh - 64px)' }}>
       {/* Mobile: toggle sidebar */}
       <div className="md:hidden flex items-center justify-between px-4 py-2 bg-white border-b border-border">
         <span className="text-sm font-semibold text-text-dark">Route Finder</span>
@@ -303,9 +300,19 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* ── Sidebar ────────────────────────────────────────── */}
-        <aside className={`${sidebarOpen ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-96 bg-white border-r border-border overflow-y-auto`}>
+      {/*
+        Inner layout:
+        - Mobile: flex-col — sidebar stacks ABOVE map so map always gets remaining height.
+        - Desktop (md+): flex-row — sidebar is a fixed-width panel on the left.
+      */}
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        {/*
+          Sidebar:
+          - Mobile: when open, it shows as a scrollable panel with a capped height (~50% of
+            remaining space) so the map is always visible below it. When closed, hidden.
+          - Desktop: fixed 384px wide column (md:w-96), full height, always visible.
+        */}
+        <aside className={`${sidebarOpen ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-96 bg-white border-b md:border-b-0 md:border-r border-border overflow-y-auto max-h-[50vh] md:max-h-full`}>
           <div className="p-4 space-y-4 flex-1">
             {/* Backend status indicator (desktop) */}
             <div className="hidden md:flex justify-end">
@@ -571,7 +578,7 @@ export default function Dashboard() {
         </aside>
 
         {/* ── Map ─────────────────────────────────────────────── */}
-        <main className="flex-1 relative">
+        <main className="flex-1 relative min-h-0">
           <MapView
             center={mapCenter}
             zoom={mapZoom}
@@ -581,12 +588,13 @@ export default function Dashboard() {
             routes={routes}
             scoredRoutes={scoredRoutes}
             selectedRouteIdx={selectedRouteIdx}
-            onSelectRoute={(idx) => { setSelectedRouteIdx(idx); setSidebarOpen(true); }}
+            onSelectRoute={(idx) => { setSelectedRouteIdx(idx); }}
             nearbyPlaces={mapPlaces}
             visibleLayers={visibleLayers}
             nearestSafePlace={nearestSafePlace}
             routeToSafePlace={routeToSafePlace}
             departureTime={departureTime}
+            resizeTrigger={sidebarOpen}
           />
 
           {/* Mobile: show sidebar toggle if map is visible */}

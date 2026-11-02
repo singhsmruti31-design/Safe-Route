@@ -12,7 +12,7 @@ import {
   updateProfileRequest,
 } from '../services/profile.js';
 import { listSavedRoutes, deleteSavedRoute, savedRoutesRequireBackend } from '../services/savedRoutes.js';
-import { listAccountReports } from '../services/reports.js';
+import { listAccountReports, reportsRequireBackend } from '../services/reports.js';
 import { isValidEmail, isValidMobile, isValidName, normalizePhone } from '../utils/validation.js';
 
 export default function Profile() {
@@ -203,12 +203,33 @@ export default function Profile() {
 
         <section className="card p-6 space-y-3">
           <h2 className="text-lg font-bold text-text-dark">Submitted reports</h2>
-          <p className="text-xs text-text-muted">Device-only reports from this browser. They are not shared with other users.</p>
-          {reports.length === 0 && <p className="text-sm text-text-muted">No reports on this device.</p>}
+          <p className="text-xs text-text-muted">
+            {reportsRequireBackend()
+              ? 'Device-only reports from this browser. They are not shared with other users.'
+              : 'Community reports submitted from your account.'}
+          </p>
+          {reports.length === 0 && (
+            <p className="text-sm text-text-muted">
+              {reportsRequireBackend() ? 'No reports on this device.' : 'No submitted reports found.'}
+            </p>
+          )}
           {reports.slice(0, 10).map((r) => (
             <div key={r.id} className="border border-border rounded-xl p-3 text-sm">
-              <p className="font-medium text-text-dark">{r.category}</p>
-              <p className="text-xs text-text-muted">{r.description || 'No description'} · {r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-medium text-text-dark">{r.category || r.type}</p>
+                {r.status && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded capitalize ${
+                    r.status === 'approved' ? 'bg-green-100 text-green-800' :
+                    r.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                    'bg-amber-100 text-amber-800'
+                  }`}>
+                    {r.status}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-text-muted mt-0.5">
+                {(r.description || r.note || 'No description')} · {(r.createdAt || r.created_at ? new Date(r.createdAt || r.created_at).toLocaleString() : '')}
+              </p>
             </div>
           ))}
           <Link to="/report" className="text-sm text-primary font-medium hover:underline">Open report page</Link>
